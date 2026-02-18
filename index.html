@@ -25,7 +25,17 @@
 
       <section id="liveScreen" class="screen" aria-label="Live camera mode">
         <div id="viewerWrap" class="viewer-wrap">
-          <canvas id="viewfinder" width="1080" height="1920" aria-label="Adult and baby split simulation"></canvas>
+          <div class="view-layers">
+            <canvas id="viewAdult" class="view-layer" width="720" height="1280"></canvas>
+            <canvas id="viewBaby" class="view-layer" width="720" height="1280"></canvas>
+            <div id="splitLine" class="split-line"></div>
+          </div>
+          
+          <div class="view-labels">
+            <div class="label-tag adult-tag">ADULT</div>
+            <div class="label-tag baby-tag">BABY</div>
+          </div>
+
           <button id="flipBtn" class="flip-btn" type="button" aria-label="Flip camera">
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
               <path d="M23 4v6h-6"></path>

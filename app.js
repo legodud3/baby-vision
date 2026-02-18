@@ -4,8 +4,10 @@ const HALF_HEIGHT = EXPORT_HEIGHT / 2;
 const COMPARISON_MONTHS = [0, 1, 3, 6, 9, 12];
 
 const video = document.getElementById("camera");
-const canvas = document.getElementById("viewfinder");
-const ctx = canvas.getContext("2d");
+const canvasAdult = document.getElementById("viewAdult");
+const canvasBaby = document.getElementById("viewBaby");
+const ctxAdult = canvasAdult.getContext("2d");
+const ctxBaby = canvasBaby.getContext("2d");
 const viewerWrap = document.getElementById("viewerWrap");
 const statusEl = document.getElementById("status");
 const flipBtn = document.getElementById("flipBtn");
@@ -36,10 +38,6 @@ let isRunning = false;
 let mode = "live";
 let currentFacingMode = "environment";
 let isDesktopSplit = window.matchMedia("(min-width: 900px)").matches;
-
-if (ctx && typeof ctx.filter === "undefined") {
-  console.warn("Canvas filters not supported in this browser.");
-}
 
 function syncViewportHeightVar() {
   const h = window.innerHeight;
@@ -210,7 +208,7 @@ function createProcessingSource(source) {
   const out = document.createElement("canvas");
   out.width = Math.max(1, Math.round(dims.width * scale));
   out.height = Math.max(1, Math.round(dims.height * scale));
-  const outCtx = out.getContext("2d", { alpha: false });
+  const outCtx = out.getContext("2d");
   if (!outCtx) return source;
 
   outCtx.drawImage(source, 0, 0, dims.width, dims.height, 0, 0, out.width, out.height);
@@ -241,64 +239,23 @@ function configureComparisonCanvases(source) {
 function drawSplitFrame() {
   if (!video.videoWidth || !video.videoHeight) return false;
 
-  const width = canvas.width;
-  const height = canvas.height;
+  const width = canvasAdult.width;
+  const height = canvasAdult.height;
   if (!width || !height) return false;
 
-  const halfHeight = height / 2;
-  const halfWidth = width / 2;
   const age = Number(ageSlider.value);
   const { blur, saturation, contrast, warmTint } = getSimParams(age);
 
-  const pad = Math.max(12, Math.round(width * 0.018));
-  const labelW = Math.round((isDesktopSplit ? halfWidth : width) * 0.22);
-  const labelH = Math.max(38, Math.round(height * 0.04));
-  const fontSize = Math.max(18, Math.round(height * 0.024));
+  // Adult view (unfiltered, using cover)
+  ctxAdult.clearRect(0, 0, width, height);
+  drawCoverToContext(ctxAdult, video, 0, 0, width, height);
 
-  if (isDesktopSplit) {
-    ctx.save();
-    ctx.filter = "none";
-    drawCoverToContext(ctx, video, 0, 0, halfWidth, height);
-    ctx.restore();
+  // Baby view (filtered via CSS, using cover)
+  ctxBaby.clearRect(0, 0, width, height);
+  drawCoverToContext(ctxBaby, video, 0, 0, width, height);
+  canvasBaby.style.filter = `blur(${blur}px) saturate(${saturation}%) contrast(${contrast}%) sepia(${warmTint}%)`;
+  canvasBaby.style.webkitFilter = `blur(${blur}px) saturate(${saturation}%) contrast(${contrast}%) sepia(${warmTint}%)`;
 
-    ctx.save();
-    ctx.filter = `blur(${blur}px) saturate(${saturation}%) contrast(${contrast}%) sepia(${warmTint}%)`;
-    drawCoverToContext(ctx, video, halfWidth, 0, halfWidth, height);
-    ctx.restore();
-
-    ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.fillRect(halfWidth - 1, 0, 2, height);
-  } else {
-    ctx.save();
-    ctx.filter = "none";
-    drawCoverToContext(ctx, video, 0, 0, width, halfHeight);
-    ctx.restore();
-
-    ctx.save();
-    ctx.filter = `blur(${blur}px) saturate(${saturation}%) contrast(${contrast}%) sepia(${warmTint}%)`;
-    drawCoverToContext(ctx, video, 0, halfHeight, width, halfHeight);
-    ctx.restore();
-
-    ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.fillRect(0, halfHeight - 1, width, 2);
-  }
-
-  ctx.fillStyle = "rgba(0,0,0,0.58)";
-  ctx.fillRect(pad, pad, labelW, labelH);
-  if (isDesktopSplit) {
-    ctx.fillRect(halfWidth + pad, pad, labelW, labelH);
-  } else {
-    ctx.fillRect(pad, halfHeight + pad, labelW, labelH);
-  }
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `700 ${fontSize}px 'Avenir Next', sans-serif`;
-  ctx.fillText("ADULT", pad + 12, pad + labelH - 12);
-  if (isDesktopSplit) {
-    ctx.fillText("BABY", halfWidth + pad + 14, pad + labelH - 12);
-  } else {
-    ctx.fillText("BABY", pad + 14, halfHeight + pad + labelH - 12);
-  }
   return true;
 }
 
@@ -328,30 +285,46 @@ async function startCamera() {
       audio: false,
       video: {
         facingMode: { ideal: currentFacingMode },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+        // Relax constraints to improve compatibility on some mobile devices
+        width: { ideal: 1280 }, 
+        height: { ideal: 720 }
       }
     };
     
     stream = await navigator.mediaDevices.getUserMedia(constraints);
 
     video.srcObject = stream;
+    video.setAttribute("playsinline", "true"); // Explicitly set playsinline
     await video.play();
 
-    isRunning = true;
-    saveBtn.disabled = false;
-    captureBtn.disabled = false;
-    statusEl.textContent = `Live camera active. Everything stays on device.`;
-    requestAnimationFrame(tick);
+    // Check for 0x0 video dimensions after play
+    let checkCount = 0;
+    const dimensionCheck = setInterval(() => {
+      checkCount++;
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        clearInterval(dimensionCheck);
+        isRunning = true;
+        saveBtn.disabled = false;
+        captureBtn.disabled = false;
+        statusEl.textContent = `Live camera active. Everything stays on device.`;
+        requestAnimationFrame(tick);
+      } else if (checkCount > 20) { // 2 seconds timeout
+        clearInterval(dimensionCheck);
+        console.warn("Video started but has 0 dimensions.");
+        statusEl.textContent = "Camera started but no video. Tap here to retry.";
+        isRunning = false;
+      }
+    }, 100);
+
   } catch (error) {
     console.error("startCamera error:", error);
     isRunning = false;
     saveBtn.disabled = true;
     captureBtn.disabled = true;
-    if (error.name === "NotAllowedError") {
+    if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
       statusEl.textContent = "Camera access denied. Enable it in settings and tap here.";
     } else {
-      statusEl.textContent = "Camera unavailable. Use Photo mode or tap to retry.";
+      statusEl.textContent = `Camera error: ${error.name}. Tap to retry.`;
     }
   }
 }
@@ -376,7 +349,7 @@ function saveCurrentSplitFrame() {
   const exportCanvas = document.createElement("canvas");
   exportCanvas.width = EXPORT_WIDTH;
   exportCanvas.height = EXPORT_HEIGHT;
-  const ectx = exportCanvas.getContext("2d", { alpha: false });
+  const ectx = exportCanvas.getContext("2d");
   if (!ectx) return;
 
   const age = Number(ageSlider.value);
@@ -388,6 +361,10 @@ function saveCurrentSplitFrame() {
   ectx.restore();
 
   ectx.save();
+  // Using canvas filter here for export is usually fine as it's a single operation, not a live stream
+  // But to be safe, we can replicate the logic if needed. 
+  // However, exportCanvas is not displayed, so CSS filter won't affect the blob output.
+  // We MUST use ctx.filter for the exported image data.
   ectx.filter = `blur(${blur}px) saturate(${saturation}%) contrast(${contrast}%) sepia(${warmTint}%)`;
   drawCoverToContext(ectx, video, 0, HALF_HEIGHT, EXPORT_WIDTH, HALF_HEIGHT);
   ectx.restore();
@@ -421,27 +398,26 @@ function resizeLiveCanvas() {
   const width = Math.max(320, Math.floor(rect.width));
   const height = Math.max(220, Math.floor(rect.height));
 
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
+  if (canvasAdult.width !== width || canvasAdult.height !== height) {
+    canvasAdult.width = width;
+    canvasAdult.height = height;
+    canvasBaby.width = width;
+    canvasBaby.height = height;
     if (mode === "live") drawSplitFrame();
   }
 }
 
 function captureLiveSourceCanvas() {
-  if (!video.videoWidth || !video.videoHeight || !canvas.width || !canvas.height) return null;
+  if (!video.videoWidth || !video.videoHeight || !canvasAdult.width || !canvasAdult.height) return null;
 
-  const isDesktopSplit = window.matchMedia("(min-width: 900px)").matches;
-  const sourceWidth = Math.max(1, Math.round(isDesktopSplit ? canvas.width / 2 : canvas.width));
-  const sourceHeight = Math.max(1, Math.round(isDesktopSplit ? canvas.height : canvas.height / 2));
   const snapshot = document.createElement("canvas");
-  snapshot.width = sourceWidth;
-  snapshot.height = sourceHeight;
-  const snapshotCtx = snapshot.getContext("2d", { alpha: false });
+  snapshot.width = canvasAdult.width;
+  snapshot.height = canvasAdult.height;
+  const snapshotCtx = snapshot.getContext("2d");
   if (!snapshotCtx) return null;
 
-  snapshotCtx.filter = "none";
-  drawCoverToContext(snapshotCtx, video, 0, 0, sourceWidth, sourceHeight);
+  // Capture what the user sees (cover/crop) instead of the full distorted video frame
+  drawCoverToContext(snapshotCtx, video, 0, 0, snapshot.width, snapshot.height);
   return snapshot;
 }
 
@@ -449,26 +425,22 @@ function renderComparisonFromSource(source, labelText) {
   const processingSource = createProcessingSource(source);
   configureComparisonCanvases(processingSource);
 
-  sourceCtx.save();
-  sourceCtx.filter = "none";
   sourceCtx.clearRect(0, 0, sourcePreview.width, sourcePreview.height);
   drawContainToContext(sourceCtx, processingSource, 0, 0, sourcePreview.width, sourcePreview.height);
-  sourceCtx.restore();
   sourceLabel.textContent = labelText;
 
   COMPARISON_MONTHS.forEach((age) => {
     const tile = tileCanvases[age];
-    const tctx = tile.getContext("2d", { alpha: false });
+    const tctx = tile.getContext("2d");
     const p = getSimParams(age);
 
-    tctx.save();
     tctx.clearRect(0, 0, tile.width, tile.height);
-    tctx.filter = "none";
     tctx.fillStyle = "#020407";
     tctx.fillRect(0, 0, tile.width, tile.height);
-    tctx.filter = `blur(${p.blur}px) saturate(${p.saturation}%) contrast(${p.contrast}%) sepia(${p.warmTint}%)`;
     drawContainImageToContext(tctx, processingSource, 0, 0, tile.width, tile.height);
-    tctx.restore();
+    
+    // Use CSS filter for the tile canvas for broad compatibility
+    tile.style.filter = `blur(${p.blur / 4}px) saturate(${p.saturation}%) contrast(${p.contrast}%) sepia(${p.warmTint}%)`;
   });
 }
 
@@ -526,9 +498,10 @@ function initGridPlaceholders() {
   sourceCtx.fillRect(0, 0, sourcePreview.width, sourcePreview.height);
 
   Object.values(tileCanvases).forEach((tile) => {
-    const tctx = tile.getContext("2d", { alpha: false });
+    const tctx = tile.getContext("2d");
     tctx.fillStyle = "#05090f";
     tctx.fillRect(0, 0, tile.width, tile.height);
+    tile.style.filter = "none";
   });
 }
 

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>baby-vision v0.1</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div class="brand-row">
+          <h1>baby-vision <span>v0.1</span></h1>
+          <p class="privacy-copy">I care about your privacy. This website does not store your photos or videos. Everything stays on device.</p>
+        </div>
+        <div class="mode-switch" role="tablist" aria-label="View mode selector">
+          <button id="liveModeBtn" class="mode-btn active" type="button" role="tab" aria-selected="true">
+            Live
+          </button>
+          <button id="photoModeBtn" class="mode-btn" type="button" role="tab" aria-selected="false">
+            Photo
+          </button>
+        </div>
+      </header>
+
+      <section id="liveScreen" class="screen" aria-label="Live camera mode">
+        <div id="viewerWrap" class="viewer-wrap">
+          <canvas id="viewfinder" width="1080" height="1920" aria-label="Adult and baby split simulation"></canvas>
+          <div id="status" class="status" role="status" aria-live="polite">Initializing camera...</div>
+        </div>
+
+        <section class="controls" aria-label="Live controls">
+          <label for="ageSlider">Age: <strong id="ageLabel">0 months</strong></label>
+          <input id="ageSlider" type="range" min="0" max="12" step="1" value="0" list="ageMarks" />
+          <datalist id="ageMarks">
+            <option value="0" label="0"></option>
+            <option value="1" label="1"></option>
+            <option value="2" label="2"></option>
+            <option value="3" label="3"></option>
+            <option value="6" label="6"></option>
+            <option value="12" label="12"></option>
+          </datalist>
+          <div class="age-breakpoints" aria-hidden="true">
+            <span style="--mark: 0%">0</span>
+            <span style="--mark: 8.33%">1</span>
+            <span style="--mark: 16.66%">2</span>
+            <span style="--mark: 25%">3</span>
+            <span style="--mark: 50%">6</span>
+            <span style="--mark: 100%">12</span>
+          </div>
+          <div class="button-row">
+            <button id="captureBtn" type="button">Capture To Photo</button>
+            <button id="saveBtn" type="button">Save Split PNG</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="photoScreen" class="screen" aria-label="Photo mode" hidden>
+        <div class="photo-layout">
+          <figure class="source-card">
+            <div class="source-head">
+              <figcaption id="sourceLabel">Original</figcaption>
+              <label for="photoInput" class="file-btn">Choose Photo</label>
+              <input id="photoInput" type="file" accept="image/*" capture="environment" />
+            </div>
+            <canvas id="sourcePreview" width="360" height="270" aria-label="Original image"></canvas>
+            <p id="comparisonMeta">Capture from Live or choose a photo.</p>
+          </figure>
+
+          <div class="month-grid" id="monthGrid">
+            <figure class="tile">
+              <canvas id="tile-0" width="360" height="270" aria-label="0 months"></canvas>
+              <figcaption>0 months</figcaption>
+            </figure>
+            <figure class="tile">
+              <canvas id="tile-1" width="360" height="270" aria-label="1 month"></canvas>
+              <figcaption>1 month</figcaption>
+            </figure>
+            <figure class="tile">
+              <canvas id="tile-3" width="360" height="270" aria-label="3 months"></canvas>
+              <figcaption>3 months</figcaption>
+            </figure>
+            <figure class="tile">
+              <canvas id="tile-6" width="360" height="270" aria-label="6 months"></canvas>
+              <figcaption>6 months</figcaption>
+            </figure>
+            <figure class="tile">
+              <canvas id="tile-9" width="360" height="270" aria-label="9 months"></canvas>
+              <figcaption>9 months</figcaption>
+            </figure>
+            <figure class="tile">
+              <canvas id="tile-12" width="360" height="270" aria-label="12 months"></canvas>
+              <figcaption>12 months</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <video id="camera" autoplay playsinline muted hidden></video>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

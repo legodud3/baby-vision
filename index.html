@@ -26,6 +26,13 @@
       <section id="liveScreen" class="screen" aria-label="Live camera mode">
         <div id="viewerWrap" class="viewer-wrap">
           <canvas id="viewfinder" width="1080" height="1920" aria-label="Adult and baby split simulation"></canvas>
+          <button id="flipBtn" class="flip-btn" type="button" aria-label="Flip camera">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 4v6h-6"></path>
+              <path d="M1 20v-6h6"></path>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+          </button>
           <div id="status" class="status" role="status" aria-live="polite">Initializing camera...</div>
         </div>
 
@@ -61,7 +68,7 @@
             <div class="source-head">
               <figcaption id="sourceLabel">Original</figcaption>
               <label for="photoInput" class="file-btn">Choose Photo</label>
-              <input id="photoInput" type="file" accept="image/*" capture="environment" />
+              <input id="photoInput" type="file" accept="image/*" />
             </div>
             <canvas id="sourcePreview" width="360" height="270" aria-label="Original image"></canvas>
             <p id="comparisonMeta">Capture from Live or choose a photo.</p>
@@ -96,7 +103,7 @@
         </div>
       </section>
 
-      <video id="camera" autoplay playsinline muted hidden></video>
+      <video id="camera" autoplay playsinline muted></video>
     </main>
 
     <script src="app.js"></script>

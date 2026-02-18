@@ -5,9 +5,10 @@ const COMPARISON_MONTHS = [0, 1, 3, 6, 9, 12];
 
 const video = document.getElementById("camera");
 const canvas = document.getElementById("viewfinder");
-const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
+const ctx = canvas.getContext("2d");
 const viewerWrap = document.getElementById("viewerWrap");
 const statusEl = document.getElementById("status");
+const flipBtn = document.getElementById("flipBtn");
 
 const liveModeBtn = document.getElementById("liveModeBtn");
 const photoModeBtn = document.getElementById("photoModeBtn");
@@ -21,7 +22,7 @@ const saveBtn = document.getElementById("saveBtn");
 const photoInput = document.getElementById("photoInput");
 
 const sourcePreview = document.getElementById("sourcePreview");
-const sourceCtx = sourcePreview.getContext("2d", { alpha: false });
+const sourceCtx = sourcePreview.getContext("2d");
 const sourceLabel = document.getElementById("sourceLabel");
 const comparisonMeta = document.getElementById("comparisonMeta");
 
@@ -33,10 +34,17 @@ const tileCanvases = COMPARISON_MONTHS.reduce((map, month) => {
 let stream;
 let isRunning = false;
 let mode = "live";
+let currentFacingMode = "environment";
+let isDesktopSplit = window.matchMedia("(min-width: 900px)").matches;
+
+if (ctx && typeof ctx.filter === "undefined") {
+  console.warn("Canvas filters not supported in this browser.");
+}
 
 function syncViewportHeightVar() {
   const h = window.innerHeight;
   document.documentElement.style.setProperty("--app-vh", `${h}px`);
+  isDesktopSplit = window.matchMedia("(min-width: 900px)").matches;
   requestAnimationFrame(resizeLiveCanvas);
 }
 
@@ -237,7 +245,6 @@ function drawSplitFrame() {
   const height = canvas.height;
   if (!width || !height) return false;
 
-  const isDesktopSplit = window.matchMedia("(min-width: 900px)").matches;
   const halfHeight = height / 2;
   const halfWidth = width / 2;
   const age = Number(ageSlider.value);
@@ -304,22 +311,29 @@ function tick() {
 async function startCamera() {
   if (stream) {
     if (!isRunning) {
-      await video.play();
-      isRunning = true;
-      requestAnimationFrame(tick);
+      try {
+        await video.play();
+        isRunning = true;
+        requestAnimationFrame(tick);
+      } catch (err) {
+        console.error("video.play error:", err);
+        statusEl.textContent = "Click Live or Tap here to start camera.";
+      }
     }
     return;
   }
 
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
+    const constraints = {
       audio: false,
       video: {
-        facingMode: { ideal: "environment" },
+        facingMode: { ideal: currentFacingMode },
         width: { ideal: 1920 },
         height: { ideal: 1080 }
       }
-    });
+    };
+    
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
 
     video.srcObject = stream;
     await video.play();
@@ -327,15 +341,25 @@ async function startCamera() {
     isRunning = true;
     saveBtn.disabled = false;
     captureBtn.disabled = false;
-    statusEl.textContent = "Live camera active. Processing stays on this device.";
+    statusEl.textContent = `Live camera active. Everything stays on device.`;
     requestAnimationFrame(tick);
   } catch (error) {
-    console.error(error);
+    console.error("startCamera error:", error);
     isRunning = false;
     saveBtn.disabled = true;
     captureBtn.disabled = true;
-    statusEl.textContent = "Camera unavailable. Allow camera access or use Photo upload.";
+    if (error.name === "NotAllowedError") {
+      statusEl.textContent = "Camera access denied. Enable it in settings and tap here.";
+    } else {
+      statusEl.textContent = "Camera unavailable. Use Photo mode or tap to retry.";
+    }
   }
+}
+
+async function toggleCamera() {
+  currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+  stopCamera();
+  await startCamera();
 }
 
 function stopCamera() {
@@ -523,6 +547,13 @@ ageSlider.addEventListener("input", () => {
 
 captureBtn.addEventListener("click", captureToComparison);
 saveBtn.addEventListener("click", saveCurrentSplitFrame);
+flipBtn.addEventListener("click", toggleCamera);
+
+statusEl.addEventListener("click", async () => {
+  if (!isRunning && mode === "live") {
+    await startCamera();
+  }
+});
 
 photoInput.addEventListener("change", async (event) => {
   const [file] = event.target.files || [];

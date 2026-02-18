@@ -139,6 +139,41 @@ h1 span {
   background: #000;
 }
 
+#camera {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.flip-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 10;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.flip-btn:active {
+  background: rgba(0, 0, 0, 0.7);
+}
+
 .status {
   position: absolute;
   left: 8px;
